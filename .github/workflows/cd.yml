@@ -1,0 +1,30 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Authenticate with AKS
+        uses: azure/aks-set-context@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          cluster-name: devops-aks
+          resource-group: devops-rg
+
+      - name: Deploy updated image
+        run: |
+          kubectl set image deployment/webapp webapp=${{ secrets.REGISTRY_URL }}/webapp:${{ github.sha }}
+          kubectl rollout status deployment/webapp
